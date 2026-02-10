@@ -1,0 +1,20 @@
+langchain==1.2.6
+langchain-community 
+pypdf
+faiss-cpu
+langchain-huggingface
+sentence-transformers
+fastapi
+transformers==5.0.0
+git-lfs
+# brew install triton
+pdf2image
+pymilvus
+colpali_engine
+tqdm 
+pillow
+poppler
+milvus
+# pip install -U pymilvus[milvus-lite]``
+# pip install qwen-vl-utils
+pip install -U deepeval
