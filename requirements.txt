@@ -17,4 +17,6 @@ poppler
 milvus
 # pip install -U pymilvus[milvus-lite]``
 # pip install qwen-vl-utils
-pip install -U deepeval
+# pip install -U deepeval
+#pip install mcp
+

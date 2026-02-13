@@ -2,7 +2,10 @@ import os
 import sys
 import argparse
 import time
-import ingestion, embeddings , vectorstore,test_evaluation
+# import ingestion, embeddings , vectorstore,test_evaluation
+import ingestion, embeddings , vectorstore
+
+
 # from dotenv import load_dotenv
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -85,21 +88,20 @@ class SimpleRag :
         # Process document images
 
         images = [Image.open(img_base_path+f"/{name}") for name in os.listdir(img_base_path)]
-        print("images paths",images)
         dataloader = DataLoader(
             dataset=ListDataset[str](images),
             batch_size=1,
             shuffle=False,
             collate_fn=lambda x: processor.process_images(x),
         )
-        print("dataloader",dataloader)
 
         document_embeddings = []
         for batch_doc in tqdm(dataloader):
             with torch.no_grad():
                 batch_doc = {k: v.to(model.device) for k, v in batch_doc.items()}
+                print("batch_doc", batch_doc['pixel_values'].shape)
                 embeddings_doc = model(**batch_doc)
-                print("type embeddings_doc",type(embeddings_doc))
+                print("type embeddings_doc",type(embeddings_doc),(embeddings_doc.shape))
             document_embeddings.extend(list(torch.unbind(embeddings_doc.to(device))))
 
 
@@ -153,19 +155,19 @@ class SimpleRag :
          }
 
         actual_output = ''
-        with requests.post(model_url,  data=data, files=files, stream=True) as response:
-            for line in response.iter_lines():
-                if not line:
-                    actual_output+= line
+    #     with requests.post(model_url,  data=data, files=files, stream=True) as response:
+    #         for line in response.iter_lines():
+    #             if not line:
+    #                 actual_output+= line
 
-                    continue
-                print(line.decode('utf-8'))
-        rag_evaluation  = test_evaluation.Rag_Eval()
-        retrieval_context=f"""        
-        {MLLMImage(url="./image_folders", local=True)} 
-    """
+    #                 continue
+    #             print(line.decode('utf-8'))
+    #     rag_evaluation  = test_evaluation.Rag_Eval()
+    #     retrieval_context=f"""        
+    #     {MLLMImage(url="./image_folders", local=True)} 
+    # """
 
-        rag_evaluation.Eval_rag(metrics_list,input,actual_output,retrieval_context)
+    #     rag_evaluation.Eval_rag(metrics_list,input,actual_output,retrieval_context)
         
         
 
@@ -215,9 +217,9 @@ if __name__ == '__main__':
 
     retrieval_results = simple_rag.vector_retrieval(query,vector_store)
 
-    # simple_rag.test_ColPali_embedding(pdf_path = "/Users/oussamayousr/Documents/ai-agent-multimodal-rag/data/2312.10997v5-2.pdf"
-    #                            ,model_name = "vidore/colpali-v1.2",device = "mps")
-    simple_rag.test_colpali_rag(query = "nothing",model_name = "vidore/colpali-v1.2",device = "mps")
+    simple_rag.test_ColPali_embedding(pdf_path = "/Users/oussamayousr/Documents/ai-agent-multimodal-rag/data/2312.10997v5-2.pdf"
+                               ,model_name = "vidore/colpali-v1.2",device = "mps")
+    # simple_rag.test_colpali_rag(query = "nothing",model_name = "vidore/colpali-v1.2",device = "mps")
     
     
 
