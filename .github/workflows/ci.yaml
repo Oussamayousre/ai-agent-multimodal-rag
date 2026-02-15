@@ -23,7 +23,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set lowercase repo name
         run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
-
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          docker system prune -af
+          df -h
       - name: Build & push RAG API
         run: |
           docker build -t ghcr.io/${{ env.REPO }}/rag-api:${{ github.sha }} ./rag-api
@@ -44,7 +50,13 @@ jobs:
       - name: Set lowercase repo name
         run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          docker system prune -af
+          df -h
       - name: Build & push Ray VLM
         run: |
           docker build -t ghcr.io/${{ env.REPO }}/ray-vlm:${{ github.sha }} ./ray-vlm

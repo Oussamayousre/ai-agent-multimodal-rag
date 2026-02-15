@@ -10,8 +10,7 @@ from langchain_text_splitters import CharacterTextSplitter
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from colpali_engine.utils.torch_utils import ListDataset, get_torch_device
 
-from langchain_community.document_loaders import PyPDFLoader,TextLoader
-from pymilvus import MilvusClient, DataType
+from pymilvus import MilvusClient
 
 import requests
 from torch.utils.data import DataLoader
