@@ -11,6 +11,9 @@ jobs:
   # ---- Build both images in parallel ----
   build-rag:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        
     steps:
       - name: Checkout code
         uses: actions/checkout@v4 
@@ -37,6 +40,9 @@ jobs:
 
   build-vlm:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,8 +59,9 @@ jobs:
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/ghcrunner
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
           docker system prune -af
           df -h
       - name: Build & push Ray VLM
@@ -66,6 +73,9 @@ jobs:
   update-manifests:
       needs: [build-rag, build-vlm]
       runs-on: ubuntu-latest
+      permissions:
+        contents: read
+        packages: write        
       steps:
         - name: Clone infra repo
           run: |
