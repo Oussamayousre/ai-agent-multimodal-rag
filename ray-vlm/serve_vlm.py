@@ -5,19 +5,13 @@ import ray
 import json
 import torch
 
-import asyncio
 import numpy as np
 from ray import serve
 from PIL import Image
 from uuid import uuid4
 from typing import List
-import concurrent.futures
 from typing import Annotated
 from threading import Thread
-from transformers import TextStreamer
-from pdf2image import convert_from_path
-from torch.utils.data import DataLoader
-from pymilvus import MilvusClient, DataType
 from transformers import TextIteratorStreamer
 from qwen_vl_utils import process_vision_info
 from fastapi.responses import StreamingResponse
@@ -63,10 +57,20 @@ class VLMDeployment:
         self.message = {'role': 'user', 'content': 'Why is the sky blue?'}
 
         self.model_id = "Qwen/Qwen2.5-VL-3B-Instruct"
-        torch.set_default_device("mps")
+        # Automatically select the best available device
+        if torch.cuda.is_available():
+            device = "cuda"
+        else:
+            device = "cpu"
+        torch.set_default_device(device)
+        print(f"Using device: {device}")
+
+
+
         self.vl_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             self.model_id,
-            torch_dtype=torch.bfloat16,
+            torch_dtype=torch.float32 if device == "cpu" else torch.bfloat16,
+            device_map="auto" if device != "cpu" else None,
         )
 
         min_pixels = 224*224
@@ -102,7 +106,7 @@ class VLMDeployment:
             chat_template = [
                 {
                     "role": "user",
-                    "content": paths+ [{"type": "text", "text": messages}]
+                    "content": paths + [{"type": "text", "text": messages}]
                               
                 }]
 

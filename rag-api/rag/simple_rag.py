@@ -3,8 +3,7 @@ import sys
 import argparse
 import time
 # import ingestion, embeddings , vectorstore,test_evaluation
-import ingestion, embeddings , vectorstore
-
+from . import ingestion, embeddings, vectorstore
 
 # from dotenv import load_dotenv
 from langchain_text_splitters import CharacterTextSplitter
@@ -99,9 +98,7 @@ class SimpleRag :
         for batch_doc in tqdm(dataloader):
             with torch.no_grad():
                 batch_doc = {k: v.to(model.device) for k, v in batch_doc.items()}
-                print("batch_doc", batch_doc['pixel_values'].shape)
                 embeddings_doc = model(**batch_doc)
-                print("type embeddings_doc",type(embeddings_doc),(embeddings_doc.shape))
             document_embeddings.extend(list(torch.unbind(embeddings_doc.to(device))))
 
 
@@ -121,14 +118,24 @@ class SimpleRag :
             }
             retriever.insert(data)
     def test_colpali_rag(self,query,model_name = "vidore/colpali-v1.2",device = "mps", model_url = "http://127.0.0.1:8000/generate" ) :
+        """
+        Test_colpali_rag function takes query as an argument, look for similarities in the vectordb and then returns
+        the answer to the query with the context from the vlm.
+        
+        :param self: Description
+        :param query: Description
+        :param model_name: Description
+        :param device: Description
+        :param model_url: Description
+        """
         doc_embedder = embeddings.base_embedding(model_name = model_name,device = device)
-        print("Enter your query :")
-        input_query = input()
+        # print("Enter your query :")
+        # input_query = input()
         model , processor = doc_embedder.ColPAli()
 
         # Process queries
         queries = [
-           input_query,
+           query
         ]
         process_start_time  = time.time()
         model_input = processor.process_queries(queries).to(model.device)
@@ -142,33 +149,15 @@ class SimpleRag :
             query_embedding = embeddings_query[i].cpu().float().numpy()
             results = retriever.search(query_embedding, topk=3)
         print("search queries time : ",time.time() - search_start_time)
-
-
-
-        base_path = "/Users/oussamayousr/Documents/ai-agent-multimodal-rag/data/colipali_data/"
-        
-        files  = [("files",(os.path.basename(base_path+f"page_{doc_id+1}.png"), open(base_path+f"page_{doc_id+1}.png", 'rb'), 'image/png')) for  _, doc_id in results ] # or appropriate image MIME type
-            
-
+        path = "/Users/oussamayousr/Documents/ai-agent-multimodal-rag/data/vlm_uploaded_data/page_2.png"
+        multiple_files = [('files', ("page_2.png", open(path , 'rb'), 'image/png'))]
         data = {
-        "token": queries[0]  # This goes in data, not files
-         }
+            "token": query
+        }
+        # results = requests.post(model_url, files=multiple_files , data = data)
+        results = requests.post(model_url ,files= multiple_files,  data = data)
+        return results.text
 
-        actual_output = ''
-    #     with requests.post(model_url,  data=data, files=files, stream=True) as response:
-    #         for line in response.iter_lines():
-    #             if not line:
-    #                 actual_output+= line
-
-    #                 continue
-    #             print(line.decode('utf-8'))
-    #     rag_evaluation  = test_evaluation.Rag_Eval()
-    #     retrieval_context=f"""        
-    #     {MLLMImage(url="./image_folders", local=True)} 
-    # """
-
-    #     rag_evaluation.Eval_rag(metrics_list,input,actual_output,retrieval_context)
-        
         
 
     def test_correctness():
@@ -215,11 +204,11 @@ if __name__ == '__main__':
     indexing_results,vector_store = simple_rag.test_vectorstore(hg_embedder,chunks,embedd)
     query = "LangChain provides abstractions to make working with LLMs easy"
 
-    retrieval_results = simple_rag.vector_retrieval(query,vector_store)
+    # retrieval_results = simple_rag.vector_retrieval(query,vector_store)
 
-    simple_rag.test_ColPali_embedding(pdf_path = "/Users/oussamayousr/Documents/ai-agent-multimodal-rag/data/2312.10997v5-2.pdf"
-                               ,model_name = "vidore/colpali-v1.2",device = "mps")
-    # simple_rag.test_colpali_rag(query = "nothing",model_name = "vidore/colpali-v1.2",device = "mps")
+    # simple_rag.test_ColPali_embedding(query = "how are you doing",pdf_path = "/Users/oussamayousr/Documents/ai-agent-multimodal-rag/data/2312.10997v5-2.pdf"
+    #                            ,model_name = "vidore/colpali-v1.2",device = "mps")
+    results = simple_rag.test_colpali_rag(query = "how are you doing",model_name = "vidore/colpali-v1.2",device = "mps")
     
     
 

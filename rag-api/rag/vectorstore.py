@@ -120,7 +120,7 @@ class MilvusColbertRetriever:
         results = self.client.search(
             self.collection_name,
             data,
-            limit=int(50),
+            limit=int(10),
             output_fields=["vector", "seq_id", "doc_id"],
             search_params=search_params,
         )
@@ -129,9 +129,13 @@ class MilvusColbertRetriever:
         doc_ids = set()
         for r_id in range(len(results)):
             for r in range(len(results[r_id])):
-                doc_ids.add(results[r_id][r]["entity"]["doc_id"])
+                if results[r_id][r].distance >= 0.5 : 
+                    doc_ids.add(results[r_id][r]["entity"]["doc_id"])
 
         scores = []
+
+        if len(doc_ids) == 0 : 
+            return scores 
 
         # Rerank function to calculate MaxSim score for each document
         def rerank_single_doc(doc_id, data, client, collection_name):
@@ -152,7 +156,6 @@ class MilvusColbertRetriever:
             # and sum these maximum similarities
             score = np.dot(data, doc_vecs.T).max(1).sum()
             return (score, doc_id)
-
         # Use parallel processing to rerank documents
         with concurrent.futures.ThreadPoolExecutor(max_workers=300) as executor:
             futures = {executor.submit(rerank_single_doc, doc_id, data, self.client, self.collection_name): doc_id for doc_id in doc_ids}

@@ -19,4 +19,5 @@ milvus
 # pip install qwen-vl-utils
 # pip install -U deepeval
 #pip install mcp
+wikipedia
 

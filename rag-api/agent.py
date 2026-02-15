@@ -3,10 +3,11 @@ from openai import OpenAI
 import json
 import os 
 import json
-import psycopg2
 import wikipedia
 from typing import Dict, List, Any
 from openai import OpenAI
+
+
 os.environ["OPENAI_API_KEY"] = "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"
 
 tools = [{
@@ -21,6 +22,24 @@ Returns the first three sentences of the most relevant article.""",
                 "query": {
                     "type": "string",
                     "description": "The topic to search for on Wikipedia"
+                }
+            },
+            "required": ["query"],
+            "additionalProperties": False
+        },
+        "strict": True
+    }
+    ,
+    "type": "function",
+    "function": {
+        "name": "search_rag",
+        "description": """search for the context in the vectorDB , if the question if purely about RAGs""",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "the user query to search for similarities in VectorDB"
                 }
             },
             "required": ["query"],
@@ -70,6 +89,32 @@ def search_wikipedia(query: str) -> str:
             "error": "Unexpected error",
             "message": str(e)
         })
+from rag import simple_rag
+
+Colpali_search = simple_rag.SimpleRag(
+        path = "/Users/oussamayousr/Documents/ai-agent-multimodal-rag/data/2312.10997v5-2.pdf"    
+    )
+def search_rag(query: str) -> str:
+    """
+    Search in rag vector DV  and return the context and the query.
+    Handles disambiguation and missing pages gracefully.
+    """
+    try:
+        # Try to get the most relevant page summary
+        results = Colpali_search.test_colpali_rag(
+            query
+            
+        )
+
+        return json.dumps({
+            "vlm_result": results,
+        })
+
+    except Exception as e:
+        return json.dumps({
+            "error": "Unexpected error",
+            "message": str(e)
+        })
 
 class Agent:
     def __init__(self, system_prompt: Optional[str] = None):
@@ -86,13 +131,14 @@ class Agent:
         self.messages = []
 
         # Set up system prompt if provided, otherwise use default
-        default_prompt = """You are a helpful AI assistant with access to a database
+        default_prompt = """You are a helpful AI assistant with access to a Rag 
         and Wikipedia. Follow these rules:
-        1. When asked about data, always check the database first
+        1. When asked about RAGs informations ,always search in vectordb first,
         2. For general knowledge questions, use Wikipedia
-        3. If you're unsure about data, query the database to verify
-        4. Always mention your source of information
+        4. Always mention your source of information from wikipedia
         5. If a tool returns an error, explain the error to the user clearly
+        6. send the same user query to RAG function ,  make it longer.
+
         """
 
         self.messages.append({
@@ -119,6 +165,9 @@ class Agent:
             #     result = query_database(function_args["query"])
             if function_name == "search_wikipedia":
                 result = search_wikipedia(function_args["query"])
+            if function_name == "search_rag":
+                print("query", function_args["query"])
+                result = search_rag(function_args["query"])
             else:
                 result = json.dumps({
                     "error": f"Unknown tool: {function_name}"
@@ -165,6 +214,7 @@ class Agent:
                 )
 
                 response_message = completion.choices[0].message
+                print("tools call response_message",response_message,response_message.tool_calls)
 
                 # If no tool calls, we're done
                 if not response_message.tool_calls:
@@ -177,7 +227,6 @@ class Agent:
                 # Process all tool calls
                 for tool_call in response_message.tool_calls:
                     try:
-                        print("Tool call:", tool_call)
                         result = self.execute_tool(tool_call)
                         print("Tool executed......")
                     except Exception as e:
@@ -186,14 +235,14 @@ class Agent:
                             "error": f"Tool execution failed: {str(e)}"
                         })
 
-                    print(f"Tool result custom: {result}")
+                    # print(f"Tool result custom: {result}")
 
                     self.messages.append({
                         "role": "tool",
                         "tool_call_id": tool_call.id,
                         "content": str(result)
                     })
-                    print("Messages:", self.messages)
+                    # print("Messages:", self.messages)
 
             # If we've reached max iterations, return a message indicating this
             max_iterations_message = {
@@ -219,3 +268,26 @@ class Agent:
             List[Dict[str, str]]: The conversation history
         """
         return self.messages
+    
+from fastapi import FastAPI,HTTPException,File, UploadFile,Form
+from typing import Annotated
+
+app = FastAPI()
+agent = Agent()
+@app.post("/generate") 
+async def generate(self, token: Annotated[str, Form()]):
+
+
+
+        try:
+            return agent.process_query(token)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+# if __name__ == '__main__':
+#     agent = Agent()
+#     agent.process_query("can you explain everything about RAG")

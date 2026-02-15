@@ -1,0 +1,33 @@
+# Use a Python base image instead of ray-ml (better ARM64 support)
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    bash \
+    git \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONUNBUFFERED=True
+
+# Create working directory
+RUN mkdir -p /serve_app
+WORKDIR /serve_app
+
+# Copy requirements first (for better caching)
+COPY requirements.txt /serve_app/
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Copy application code
+COPY . /serve_app
+
+# Expose port 8000
+EXPOSE 8000
+
+# ENTRYPOINT ["python"]
+# CMD ["serve_vlm.py"]
+
+CMD ["python", "serve_vlm.py"]

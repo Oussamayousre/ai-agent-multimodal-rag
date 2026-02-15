@@ -1,0 +1,69 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'k8s-manifests/**'    # avoid infinite loop when manifests update
+
+jobs:
+  # ---- Build both images in parallel ----
+  build-rag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push RAG API
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/rag-api:${{ github.sha }} ./rag-api
+          docker push ghcr.io/${{ github.repository }}/rag-api:${{ github.sha }}
+
+  build-vlm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push Ray VLM
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/ray-vlm:${{ github.sha }} ./ray-vlm
+          docker push ghcr.io/${{ github.repository }}/ray-vlm:${{ github.sha }}
+
+  # ---- Update K8s manifests after both builds succeed ----
+  update-manifests:
+      needs: [build-rag, build-vlm]
+      runs-on: ubuntu-latest
+      steps:
+        - name: Clone infra repo
+          run: |
+            git clone https://x-access-token:${{ secrets.INFRA_REPO_PAT }}@github.com/yourname/infra-repo.git
+
+        - name: Update image tags
+          run: |
+            cd infra-repo
+            sed -i "s|image: ghcr.io/.*/rag-api:.*|image: ghcr.io/${{ github.repository }}/rag-api:${{ github.sha }}|" rag-api/deployment.yaml
+            sed -i "s|image: ghcr.io/.*/ray-vlm:.*|image: ghcr.io/${{ github.repository }}/ray-vlm:${{ github.sha }}|" ray-vlm/deployment.yaml
+
+        - name: Commit and push
+          run: |
+            cd infra-repo
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git diff --cached --quiet || git commit -m "ci: update images to ${{ github.sha }}"
+            git push
