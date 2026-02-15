@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths-ignore:
       - 'k8s-manifests/**'    # avoid infinite loop when manifests update
   workflow_dispatch:      
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4 
 
       - name: Login to GHCR
         uses: docker/login-action@v3
