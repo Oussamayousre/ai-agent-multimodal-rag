@@ -21,11 +21,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set lowercase repo name
+        run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Build & push RAG API
         run: |
-          docker build -t ghcr.io/${{ github.repository }}/rag-api:${{ github.sha }} ./rag-api
-          docker push ghcr.io/${{ github.repository }}/rag-api:${{ github.sha }}
+          docker build -t ghcr.io/${{ env.REPO }}/rag-api:${{ github.sha }} ./rag-api
+          docker push ghcr.io/${{ env.REPO }}/rag-api:${{ github.sha }}
 
   build-vlm:
     runs-on: ubuntu-latest
@@ -39,11 +41,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set lowercase repo name
+        run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
 
       - name: Build & push Ray VLM
         run: |
-          docker build -t ghcr.io/${{ github.repository }}/ray-vlm:${{ github.sha }} ./ray-vlm
-          docker push ghcr.io/${{ github.repository }}/ray-vlm:${{ github.sha }}
+          docker build -t ghcr.io/${{ env.REPO }}/ray-vlm:${{ github.sha }} ./ray-vlm
+          docker push ghcr.io/${{ env.REPO }}/ray-vlm:${{ github.sha }}
 
   # ---- Update K8s manifests after both builds succeed ----
   update-manifests:
