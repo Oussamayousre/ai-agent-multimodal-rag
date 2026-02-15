@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths-ignore:
       - 'k8s-manifests/**'    # avoid infinite loop when manifests update
+  workflow_dispatch:      
 
 jobs:
   # ---- Build both images in parallel ----
