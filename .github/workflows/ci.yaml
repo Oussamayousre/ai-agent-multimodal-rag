@@ -101,7 +101,7 @@ jobs:
 
       - name: Clone infra repo
         run: |
-          git clone https://x-access-token:${{ secrets.INFRA_REPO_PAT }}@github.com/${{ env.REPO }}/rag-infra.git
+          git clone https://x-access-token:${{ secrets.INFRA_REPO_PAT }}@github.com/oussamayousre/rag-infra.git
 
       - name: Update image tags
         run: |
