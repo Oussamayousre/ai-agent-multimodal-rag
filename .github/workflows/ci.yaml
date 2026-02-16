@@ -4,8 +4,8 @@ on:
   push:
     branches: [main, develop]
     paths-ignore:
-      - 'k8s-manifests/**'    # avoid infinite loop when manifests update
-  workflow_dispatch:      
+      - 'k8s-manifests/**'
+  workflow_dispatch:
 
 jobs:
   # ---- Build both images in parallel ----
@@ -13,10 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write        
+      packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -24,28 +30,39 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set lowercase repo name
         run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /usr/local/share/boost
           docker system prune -af
-          df -h
+
       - name: Build & push RAG API
-        run: |
-          docker build -t ghcr.io/${{ env.REPO }}/rag-api:${{ github.sha }} ./rag-api
-          docker push ghcr.io/${{ env.REPO }}/rag-api:${{ github.sha }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./rag-api
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/${{ env.REPO }}/rag-api:${{ github.sha }}
 
   build-vlm:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write        
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -53,45 +70,50 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set lowercase repo name
         run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghcrunner
+          sudo rm -rf /opt/ghc
           sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/swift
           docker system prune -af
-          df -h
+
       - name: Build & push Ray VLM
-        run: |
-          docker build -t ghcr.io/${{ env.REPO }}/ray-vlm:${{ github.sha }} ./ray-vlm
-          docker push ghcr.io/${{ env.REPO }}/ray-vlm:${{ github.sha }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ray-vlm
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/${{ env.REPO }}/ray-vlm:${{ github.sha }}
 
   # ---- Update K8s manifests after both builds succeed ----
   update-manifests:
-      needs: [build-rag, build-vlm]
-      runs-on: ubuntu-latest
-      permissions:
-        contents: read
-        packages: write        
-      steps:
-        - name: Clone infra repo
-          run: |
-            git clone https://x-access-token:${{ secrets.INFRA_REPO_PAT }}@github.com/yourname/infra-repo.git
+    needs: [build-rag, build-vlm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Set lowercase repo name
+        run: echo "REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-        - name: Update image tags
-          run: |
-            cd infra-repo
-            sed -i "s|image: ghcr.io/.*/rag-api:.*|image: ghcr.io/${{ github.repository }}/rag-api:${{ github.sha }}|" rag-api/deployment.yaml
-            sed -i "s|image: ghcr.io/.*/ray-vlm:.*|image: ghcr.io/${{ github.repository }}/ray-vlm:${{ github.sha }}|" ray-vlm/deployment.yaml
+      - name: Clone infra repo
+        run: |
+          git clone https://x-access-token:${{ secrets.INFRA_REPO_PAT }}@github.com/${{ env.REPO }}/rag-infra.git
 
-        - name: Commit and push
-          run: |
-            cd infra-repo
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add .
-            git diff --cached --quiet || git commit -m "ci: update images to ${{ github.sha }}"
-            git push
+      - name: Update image tags
+        run: |
+          cd rag-infra
+          sed -i "s|image: ghcr.io/.*/rag-api:.*|image: ghcr.io/${{ env.REPO }}/rag-api:${{ github.sha }}|" rag-api/deployment.yaml
+          sed -i "s|image: ghcr.io/.*/ray-vlm:.*|image: ghcr.io/${{ env.REPO }}/ray-vlm:${{ github.sha }}|" ray-vlm/deployment.yaml
+
+      - name: Commit and push
+        run: |
+          cd rag-infra
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --quiet || git commit -m "ci: update images to ${{ github.sha }}"
+          git push
