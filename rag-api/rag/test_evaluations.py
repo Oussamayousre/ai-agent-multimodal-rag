@@ -5,7 +5,6 @@ from deepeval.test_case import LLMTestCase
 from deepeval.metrics import AnswerRelevancyMetric,FaithfulnessMetric,ContextualPrecisionMetric,ContextualRelevancyMetric
 # Replace this with the actual output from your LLM application
 actual_output = "We offer a 30-day full refund at no extra cost."
-os.environ["OPENAI_API_KEY"] = "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"
 # Replace this with the expected output of your RAG generator
 # expected_output = "You are eligible for a 30 day full refund at no extra cost."
 # # Replace this with the actual retrieved context from your RAG pipeline

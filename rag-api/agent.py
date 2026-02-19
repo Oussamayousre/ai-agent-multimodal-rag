@@ -8,7 +8,6 @@ from typing import Dict, List, Any
 from openai import OpenAI
 
 
-os.environ["OPENAI_API_KEY"] = "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"
 
 tools = [{
     "type": "function",
