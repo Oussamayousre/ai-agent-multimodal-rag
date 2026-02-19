@@ -25,7 +25,9 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams,MLLMImage
 from deepeval.metrics import GEval
 
 
-client = MilvusClient(uri="milvus.db")  # For local testing with Milvus Lite
+import os
+milvus_host = os.environ.get("MILVUS_HOST", "milvus-service.app.svc.cluster.local")
+client = MilvusClient(uri=f"http://{milvus_host}:19530")
 retriever = vectorstore.MilvusColbertRetriever( milvus_client=client,collection_name="colpali")
 class SimpleRag : 
     """
